@@ -11,7 +11,7 @@ async def search_artists(name: str, client: httpx.AsyncClient) -> list[dict]:
         },
         headers={"User-Agent": "AlbumRankingApp/ 0.1 eaghedo1@gmail.com"},
     )
-
+    response.raise_for_status()
     data = response.json()
 
     return [{"id": artist["id"], "name": artist["name"]} for artist in data["artists"]]

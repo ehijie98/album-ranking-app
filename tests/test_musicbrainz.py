@@ -22,6 +22,7 @@ async def test_search_artists_returns_correct_artists():
                     {
                         "id": "artist-1",
                         "name": "Artist One",
+                        "disambiguation": "Canadian rapper",
                         "country": "GB",
                         "score": 100,
                     }
@@ -34,7 +35,7 @@ async def test_search_artists_returns_correct_artists():
         # client is injected into function
         result = await search_artists("Artist One", client=client)
 
-    assert result == [{"id": "artist-1", "name": "Artist One", "disambiguation": ""}]
+    assert result == [{"id": "artist-1", "name": "Artist One", "disambiguation": "Canadian rapper"}]
 
 
 @pytest.mark.asyncio
@@ -93,12 +94,12 @@ async def test_search_artists_propagates_connection_timeout():
         raise httpx.ConnectTimeout("Connection timed out")
 
     async with make_client(mock_handler) as client:
-        with pytest.raises(httpx.ConnectTimeout) as connect_timeout:
+        with pytest.raises(httpx.ConnectTimeout):
             await search_artists("Artist One", client=client)
 
 
 @pytest.mark.asyncio
-async def test_search_artists_returns_muliple_artists_with_same_name():
+async def test_search_artists_returns_multiple_artists_with_same_name():
 
     def mock_handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(

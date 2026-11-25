@@ -68,11 +68,12 @@ async def test_sends_empty_list_for_no_artist_match():
     assert result == []
 
 
+@pytest.mark.parametrize("status_code", [400, 401, 403, 404, 429, 500, 502, 503, 504])
 @pytest.mark.asyncio
-async def test_raises_error_on_503():
+async def test_search_artist_raises_on_http_errors(status_code):
     def mock_handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
-            status_code=503,
+            status_code=status_code,
             json={"error": "Service unavailable. Please try again later"},
         )
 
@@ -80,4 +81,4 @@ async def test_raises_error_on_503():
         with pytest.raises(httpx.HTTPStatusError) as exc_info:
             await search_artists("Artist One", client=client)
 
-    assert exc_info.value.response.status_code == 503
+    assert exc_info.value.response.status_code == status_code

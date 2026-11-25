@@ -34,7 +34,7 @@ async def test_search_artists_returns_correct_artists():
         # client is injected into function
         result = await search_artists("Artist One", client=client)
 
-    assert result == [{"id": "artist-1", "name": "Artist One"}]
+    assert result == [{"id": "artist-1", "name": "Artist One", "disambiguation": ""}]
 
 
 @pytest.mark.asyncio
@@ -154,6 +154,4 @@ async def test_search_artists_handles_missing_disambiguation_field():
 
     async with make_client(mock_handler) as client:
         result = await search_artists("Artist One", client=client)
-    assert result == [
-        {"id": "artist-1", "name": "Artist One", "disambiguation": ""}
-    ]
+    assert result == [{"id": "artist-1", "name": "Artist One", "disambiguation": ""}]

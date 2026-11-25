@@ -9,9 +9,7 @@ async def search_artists(name: str, client: httpx.AsyncClient) -> list[dict]:
             "query": query,
             "fmt": "json",
         },
-        headers={
-            "User-Agent": "AlbumRankingApp/ 0.1 eaghedo1@gmail.com"
-        }
+        headers={"User-Agent": "AlbumRankingApp/ 0.1 eaghedo1@gmail.com"},
     )
 
     data = response.json()

@@ -14,7 +14,7 @@ async def test_search_artists_returns_correct_artists():
 
     # fake MusicBrainz HTTP response
     def mock_handler(request: httpx.Request) -> httpx.Response:
-        
+
         return httpx.Response(
             status_code=200,
             json={
@@ -35,7 +35,7 @@ async def test_search_artists_returns_correct_artists():
         result = await search_artists("Artist One", client)
 
     assert result == [{"id": "artist-1", "name": "Artist One"}]
-   
+
 
 @pytest.mark.asyncio
 async def test_sends_valid_search_request():
@@ -47,28 +47,37 @@ async def test_sends_valid_search_request():
         assert request.url.params["query"] == 'artist:"Artist One"'
         assert request.url.params["fmt"] == "json"
         assert request.headers["User-Agent"].startswith("AlbumRankingApp/")
-        
+
         return httpx.Response(200, json={"artists": []})
 
     async with make_client(mock_handler) as client:
         await search_artists("Artist One", client=client)
+
 
 @pytest.mark.asyncio
 async def test_sends_empty_list_for_no_artist_match():
     def mock_handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
             status_code=200,
-            json={
-                "artists": []
-            },
+            json={"artists": []},
         )
-    
+
     async with make_client(mock_handler) as client:
         result = await search_artists("qqqqqq", client=client)
-    
+
     assert result == []
 
 
+@pytest.mark.asyncio
+async def test_raises_error_on_503():
+    def mock_handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            status_code=503,
+            json={"error": "Service unavailable. Please try again later"},
+        )
 
-    
+    async with make_client(mock_handler) as client:
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            await search_artists("Artist One", client=client)
 
+    assert exc_info.value.response.status_code == 503

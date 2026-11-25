@@ -14,6 +14,7 @@ async def test_search_artists_returns_correct_artists():
 
     # fake MusicBrainz HTTP response
     def mock_handler(request: httpx.Request):
+        
         return httpx.Response(
             status_code=200,
             json={
@@ -34,3 +35,24 @@ async def test_search_artists_returns_correct_artists():
         result = await search_artists("Artist One", client)
 
     assert result == [{"id": "artist-1", "name": "Artist One"}]
+   
+
+@pytest.mark.asyncio
+async def test_sends_valid_search_request():
+
+    def mock_handler(request):
+        assert request.method == "GET"
+        assert request.url.host == "musicbrainz.org"
+        assert request.url.path == "/ws/2/artist/"
+        assert request.url.params["query"] == 'artist:"Artist One"'
+        assert request.url.params["fmt"] == "json"
+        assert request.headers["User-Agent"].startswith("AlbumRankingApp/")
+        
+        return httpx.Response(200, json={"artists": []})
+
+    async with make_client(mock_handler) as client:
+        await search_artists("Artist One", client=client)
+
+
+    
+

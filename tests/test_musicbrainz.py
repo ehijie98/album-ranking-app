@@ -82,3 +82,14 @@ async def test_search_artist_raises_on_http_errors(status_code):
             await search_artists("Artist One", client=client)
 
     assert exc_info.value.response.status_code == status_code
+
+@pytest.mark.asyncio
+async def test_search_artists_propagates_connection_timeout():
+
+    def mock_handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectTimeout("Connection timed out")
+
+    async with make_client(mock_handler) as client:
+        with pytest.raises(httpx.ConnectTimeout) as connect_timeout:
+            await search_artists("Artist One", client=client)
+          

@@ -32,7 +32,7 @@ async def test_search_artists_returns_correct_artists():
     # creating asynchronous HTTP client
     async with make_client(mock_handler) as client:
         # client is injected into function
-        result = await search_artists("Artist One", client)
+        result = await search_artists("Artist One", client=client)
 
     assert result == [{"id": "artist-1", "name": "Artist One"}]
 
@@ -56,6 +56,7 @@ async def test_sends_valid_search_request():
 
 @pytest.mark.asyncio
 async def test_sends_empty_list_for_no_artist_match():
+
     def mock_handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
             status_code=200,
@@ -71,6 +72,7 @@ async def test_sends_empty_list_for_no_artist_match():
 @pytest.mark.parametrize("status_code", [400, 401, 403, 404, 429, 500, 502, 503, 504])
 @pytest.mark.asyncio
 async def test_search_artist_raises_on_http_errors(status_code):
+
     def mock_handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
             status_code=status_code,
@@ -83,6 +85,7 @@ async def test_search_artist_raises_on_http_errors(status_code):
 
     assert exc_info.value.response.status_code == status_code
 
+
 @pytest.mark.asyncio
 async def test_search_artists_propagates_connection_timeout():
 
@@ -92,4 +95,43 @@ async def test_search_artists_propagates_connection_timeout():
     async with make_client(mock_handler) as client:
         with pytest.raises(httpx.ConnectTimeout) as connect_timeout:
             await search_artists("Artist One", client=client)
-          
+
+
+@pytest.mark.asyncio
+async def test_search_artists_returns_muliple_artists_with_same_name():
+
+    def mock_handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            status_code=200,
+            json={
+                "artists": [
+                    {
+                        "id": "artist-1",
+                        "name": "Artist One",
+                        "disambiguation": "Canadian rapper",
+                    },
+                    {
+                        "id": "artist-2",
+                        "name": "Artist One",
+                        "disambiguation": "English singer-songwriter",
+                    },
+                ]
+            },
+        )
+
+    async with make_client(mock_handler) as client:
+        result = await search_artists("Artist One", client=client)
+    
+    assert result == [
+            {
+                "id": "artist-1",
+                "name": "Artist One",
+                "disambiguation": "Canadian rapper",
+            },
+            {
+                "id": "artist-2",
+                "name": "Artist One",
+                "disambiguation": "English singer-songwriter",
+            },
+            ]
+        

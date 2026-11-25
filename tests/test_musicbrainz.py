@@ -121,17 +121,39 @@ async def test_search_artists_returns_muliple_artists_with_same_name():
 
     async with make_client(mock_handler) as client:
         result = await search_artists("Artist One", client=client)
-    
+
     assert result == [
-            {
-                "id": "artist-1",
-                "name": "Artist One",
-                "disambiguation": "Canadian rapper",
+        {
+            "id": "artist-1",
+            "name": "Artist One",
+            "disambiguation": "Canadian rapper",
+        },
+        {
+            "id": "artist-2",
+            "name": "Artist One",
+            "disambiguation": "English singer-songwriter",
+        },
+    ]
+
+
+@pytest.mark.asyncio
+async def test_search_artists_handles_missing_disambiguation_field():
+
+    def mock_handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            status_code=200,
+            json={
+                "artists": [
+                    {
+                        "id": "artist-1",
+                        "name": "Artist One",
+                    },
+                ]
             },
-            {
-                "id": "artist-2",
-                "name": "Artist One",
-                "disambiguation": "English singer-songwriter",
-            },
-            ]
-        
+        )
+
+    async with make_client(mock_handler) as client:
+        result = await search_artists("Artist One", client=client)
+    assert result == [
+        {"id": "artist-1", "name": "Artist One", "disambiguation": ""}
+    ]

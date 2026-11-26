@@ -95,14 +95,15 @@ async def test_search_artist_raises_on_http_errors(status_code):
     assert exc_info.value.response.status_code == status_code
 
 
+@pytest.mark.parametrize("timeout_type", [httpx.ConnectTimeout, httpx.ReadTimeout])
 @pytest.mark.asyncio
-async def test_search_artists_propagates_connection_timeout():
+async def test_search_artists_propagates_timeout(timeout_type):
 
     def mock_handler(request: httpx.Request) -> httpx.Response:
-        raise httpx.ConnectTimeout("Connection timed out")
+        raise timeout_type("Connection timed out")
 
     async with make_client(mock_handler) as client:
-        with pytest.raises(httpx.ConnectTimeout):
+        with pytest.raises(timeout_type):
             await search_artists("Artist One", client=client)
 
 
@@ -392,7 +393,7 @@ async def test_get_artist_albums_handles_missing_secondary_type_field():
 
 @pytest.mark.parametrize("timeout_type", [httpx.ConnectTimeout, httpx.ReadTimeout])
 @pytest.mark.asyncio
-async def test_get_artist_albums_propagates_connection_timeout(timeout_type):
+async def test_get_artist_albums_propagates_timeout(timeout_type):
     def mock_handler(request: httpx.Request) -> httpx.Response:
         raise timeout_type("Request timed out")
     

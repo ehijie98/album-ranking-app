@@ -26,6 +26,7 @@ async def search_artists(name: str, client: httpx.AsyncClient) -> list[dict]:
 
 async def get_artist_albums(artist_id: str, client: httpx.AsyncClient) -> list[dict]:
     offset = 0
+    limit = 100
     albums = []
     while True:
         response = await client.get(

@@ -30,7 +30,7 @@ async def get_artist_albums(artist_id: str, client: httpx.AsyncClient) -> list[d
         params={"artist": artist_id, "fmt": "json"},
         headers={"User-Agent": "AlbumRankingApp/0.1 eaghedo1@gmail.com"},
     )
-
+    response.raise_for_status()
     data = response.json()
 
     return [

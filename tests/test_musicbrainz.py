@@ -227,3 +227,18 @@ async def test_send_valid_get_artist_albums_request():
     assert request.url.params["artist"] == "artist-1"
     assert request.url.params["fmt"] == "json"
     assert request.headers["User-Agent"].startswith("AlbumRankingApp/")
+
+@pytest.mark.parametrize("status_code", [400, 401, 403, 404, 429, 500, 502, 503, 504])
+@pytest.mark.asyncio
+async def test_get_artist_albums_raises_on_http_error(status_code):
+    def mock_handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            status_code=status_code,
+            json={"error": "Service Unavailable. Please try again later"}
+        )
+
+    async with make_client(mock_handler) as client:
+       with pytest.raises(httpx.HTTPStatusError) as exc_info:
+           await get_artist_albums("artist-1", client=client)
+
+    assert exc_info.value.response.status_code == status_code

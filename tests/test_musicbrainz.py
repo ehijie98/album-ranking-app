@@ -243,3 +243,17 @@ async def test_get_artist_albums_raises_on_http_error(status_code):
             await get_artist_albums("artist-1", client=client)
 
     assert exc_info.value.response.status_code == status_code
+
+
+@pytest.mark.asyncio
+async def test_get_artist_albums_handles_no_release_groups():
+    def mock_handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            status_code=200,
+            json={"release-group-count": 0, "release-groups": []},
+        )
+
+    async with make_client(mock_handler) as client:
+        result = await get_artist_albums("artist-with-no-release-groups", client=client)
+
+    assert result == []

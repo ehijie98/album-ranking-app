@@ -37,7 +37,7 @@ async def get_artist_albums(artist_id: str, client: httpx.AsyncClient) -> list[d
         {
             "id": release_group["id"],
             "title": release_group["title"],
-            "release_date": release_group["first-release-date"] or None,
+            "release_date": release_group.get("first-release-date") or None,
         }
         for release_group in data["release-groups"]
         if not release_group.get("secondary-types", [])

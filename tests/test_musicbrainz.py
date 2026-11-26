@@ -42,19 +42,25 @@ async def test_search_artists_returns_correct_artists():
 
 @pytest.mark.asyncio
 async def test_sends_valid_search_request():
+    requests_made = []
 
     def mock_handler(request: httpx.Request) -> httpx.Response:
-        assert request.method == "GET"
-        assert request.url.host == "musicbrainz.org"
-        assert request.url.path == "/ws/2/artist"
-        assert request.url.params["query"] == 'artist:"Artist One"'
-        assert request.url.params["fmt"] == "json"
-        assert request.headers["User-Agent"].startswith("AlbumRankingApp/")
-
+        requests_made.append(request)
         return httpx.Response(200, json={"artists": []})
 
     async with make_client(mock_handler) as client:
         await search_artists("Artist One", client=client)
+
+    assert len(requests_made) == 1
+
+    request = requests_made[0]
+
+    assert request.method == "GET"
+    assert request.url.host == "musicbrainz.org"
+    assert request.url.path == "/ws/2/artist"
+    assert request.url.params["query"] == 'artist:"Artist One"'
+    assert request.url.params["fmt"] == "json"
+    assert request.headers["User-Agent"].startswith("AlbumRankingApp/")
 
 
 @pytest.mark.asyncio

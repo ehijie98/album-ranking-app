@@ -345,6 +345,5 @@ async def test_get_artist_albums_retrieves_empty_secondary_type():
             "id": "album-4",
             "title": "Album Four",
             "release_date": "2024-04-04",
-            
         }
     ]

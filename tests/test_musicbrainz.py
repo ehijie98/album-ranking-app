@@ -447,3 +447,57 @@ async def test_get_artist_albums_handles_missing_release_date():
             "release_date": None,
         }
     ]
+
+
+@pytest.mark.asyncio
+async def test_get_artist_albums_retrieves_multiple_pages():
+    requests_made = []
+
+    def album(number):
+        return {
+            "id": f"album-{number}",
+            "title": f"Album {number}",
+            "first-release-date": f"202{number}-0{number}-0{number}",
+            "primary-type": "Album",
+            "secondary-types": [],
+        }
+
+    first_page = {
+        "release-group-count": 5,
+        "release-groups": [album(1), album(2), album(3)],
+    }
+
+    second_page = {
+        "release-group-count": 5,
+        "release-groups": [album(4), album(5)],
+    }
+
+    def mock_handler(request: httpx.Request) -> httpx.Response:
+        requests_made.append(request)
+
+        offset = int(request.url.params.get("offset", "0"))
+
+        if offset == 0:
+            return httpx.Response(200, json=first_page)
+
+        if offset == 3:
+            return httpx.Response(200, json=second_page)
+
+        raise AssertionError(f"Unexpected offset: {offset}")
+
+    async with make_client(mock_handler) as client:
+        result = await get_artist_albums("artist-1", client=client)
+
+    assert len(requests_made) == 2
+
+    assert int(requests_made[0].url.params.get("offset", "0")) == 0
+    assert int(requests_made[1].url.params["offset"]) == 3
+
+    assert result == [
+        {
+            "id": f"album-{number}",
+            "title": f"Album {number}",
+            "release_date": f"202{number}-0{number}-0{number}",
+        }
+        for number in range(1, 6)
+    ]

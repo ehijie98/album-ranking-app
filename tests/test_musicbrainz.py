@@ -317,7 +317,7 @@ async def test_get_artist_albums_retrieves_empty_secondary_type():
                         "title": "Album Two",
                         "first-release-date": "2022-02-02",
                         "primary-type": "Album",
-                        "secondary-types": ["Compilation"],
+                        "secondary-types": ["Compilation"]
                     },
                     {
                         "id": "album-3",
@@ -346,4 +346,46 @@ async def test_get_artist_albums_retrieves_empty_secondary_type():
             "title": "Album Four",
             "release_date": "2024-04-04",
         }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_get_artist_albums_handles_missing_secondary_type_field():
+    def mock_handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            status_code=200,
+            json={
+                "release-group-count": 2,
+                "release-groups": [
+                    {
+                        "id": "album-1",
+                        "title": "Album One",
+                        "first-release-date": "2021-01-01",
+                        "primary-type": "Album",
+                        "secondary-types": [],
+                    },
+                    {
+                        "id": "album-2",
+                        "title": "Album Two",
+                        "first-release-date": "2022-02-02",
+                        "primary-type": "Album",
+                    },
+                ],
+            },
+        )
+
+    async with make_client(mock_handler) as client:
+        result = await get_artist_albums("artist-1", client=client)
+
+    assert result == [
+        {
+            "id": "album-1",
+            "title": "Album One",
+            "release_date": "2021-01-01",
+        },
+        {
+            "id": "album-2",
+            "title": "Album Two",
+            "release_date": "2022-02-02",
+        },
     ]

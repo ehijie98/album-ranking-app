@@ -295,3 +295,56 @@ async def test_get_artist_albums_only_retrieves_type_album():
 
     request = requests_made[0]
     assert request.url.params["type"] == "album"
+
+
+@pytest.mark.asyncio
+async def test_get_artist_albums_retrieves_empty_secondary_type():
+    def mock_handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            status_code=200,
+            json={
+                "release-group-count": 4,
+                "release-groups": [
+                    {
+                        "id": "album-1",
+                        "title": "Album One",
+                        "first-release-date": "2021-01-01",
+                        "primary-type": "Album",
+                        "secondary-types": ["Live"],
+                    },
+                    {
+                        "id": "album-2",
+                        "title": "Album Two",
+                        "first-release-date": "2022-02-02",
+                        "primary-type": "Album",
+                        "secondary-types": ["Compilation"],
+                    },
+                    {
+                        "id": "album-3",
+                        "title": "Album Three",
+                        "first-release-date": "2023-03-03",
+                        "primary-type": "Album",
+                        "secondary-types": ["Remix"],
+                    },
+                    {
+                        "id": "album-4",
+                        "title": "Album Four",
+                        "first-release-date": "2024-04-04",
+                        "primary-type": "Album",
+                        "secondary-types": [],
+                    },
+                ],
+            },
+        )
+
+    async with make_client(mock_handler) as client:
+        result = await get_artist_albums("artist-1", client=client)
+
+    assert result == [
+        {
+            "id": "album-4",
+            "title": "Album Four",
+            "release_date": "2024-04-04",
+            
+        }
+    ]

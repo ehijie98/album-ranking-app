@@ -30,7 +30,7 @@ async def get_artist_albums(artist_id: str, client: httpx.AsyncClient) -> list[d
     while True:
         response = await client.get(
             "https://musicbrainz.org/ws/2/release-group",
-            params={"artist": artist_id, "type": "album", "offset": offset, "fmt": "json"},
+            params={"artist": artist_id, "type": "album", "limit": limit, "offset": offset, "fmt": "json"},
             headers={"User-Agent": "AlbumRankingApp/0.1 eaghedo1@gmail.com"},
         )
         response.raise_for_status()
@@ -50,7 +50,7 @@ async def get_artist_albums(artist_id: str, client: httpx.AsyncClient) -> list[d
 
         offset += len(data["release-groups"])
 
-        if not release_groups of offset >= data["release-group-count"]:
+        if not release_groups or offset >= data["release-group-count"]:
             break
 
     return albums

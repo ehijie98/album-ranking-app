@@ -227,7 +227,10 @@ async def test_send_valid_get_artist_albums_request():
     assert request.url.path == "/ws/2/release-group"
     assert request.url.params["artist"] == "artist-1"
     assert request.url.params["fmt"] == "json"
+    assert request.url.params["limit"] == "100"
+    assert request.url.params["offset"] == "0"
     assert request.headers["User-Agent"].startswith("AlbumRankingApp/")
+    
 
 
 @pytest.mark.parametrize("status_code", [400, 401, 403, 404, 429, 500, 502, 503, 504])

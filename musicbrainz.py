@@ -27,7 +27,7 @@ async def search_artists(name: str, client: httpx.AsyncClient) -> list[dict]:
 async def get_artist_albums(artist_id: str, client: httpx.AsyncClient) -> list[dict]:
     response = await client.get(
         "https://musicbrainz.org/ws/2/release-group",
-        params={"artist": artist_id, "fmt": "json"},
+        params={"artist": artist_id, "type": "album", "fmt": "json"},
         headers={"User-Agent": "AlbumRankingApp/0.1 eaghedo1@gmail.com"},
     )
     response.raise_for_status()

@@ -164,7 +164,7 @@ async def test_search_artists_handles_missing_disambiguation_field():
 async def test_artist_mbid_retrieves_valid_release_groups():
 
     def mock_handler(request: httpx.Request) -> httpx.Response:
-        return httpxResponse(
+        return httpx.Response(
             status_code=200,
             json={
                 "release-group-count": 2,

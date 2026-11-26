@@ -60,6 +60,7 @@ async def test_sends_valid_search_request():
     assert request.url.path == "/ws/2/artist"
     assert request.url.params["query"] == 'artist:"Artist One"'
     assert request.url.params["fmt"] == "json"
+    assert request.url.params["limit"] == "5"
     assert request.headers["User-Agent"].startswith("AlbumRankingApp/")
 
 

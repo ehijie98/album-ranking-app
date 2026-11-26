@@ -49,7 +49,7 @@ async def get_artist_albums(artist_id: str, client: httpx.AsyncClient) -> list[d
             if not release_group.get("secondary-types", [])
         ])
 
-        offset += len(data["release-groups"])
+        offset += len(release_groups)
 
         if not release_groups or offset >= data["release-group-count"]:
             break

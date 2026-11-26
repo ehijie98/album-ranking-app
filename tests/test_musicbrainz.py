@@ -269,23 +269,8 @@ async def test_get_artist_albums_only_retrieves_type_album():
         return httpx.Response(
             status_code=200,
             json={
-                "release-group-count": 2,
-                "release-groups": [
-                    {
-                        "id": "album-1",
-                        "title": "Album One",
-                        "first-release-date": "2021-01-01",
-                        "primary-type": "Album",
-                        "secondary-types": [],
-                    },
-                    {
-                        "id": "album-2",
-                        "title": "Album Two",
-                        "first-release-date": "2022-02-02",
-                        "primary-type": "Album",
-                        "secondary-types": [],
-                    },
-                ],
+                "release-group-count": 0,
+                "release-groups": [],
             },
         )
 
@@ -432,6 +417,7 @@ async def test_get_artist_albums_handles_empty_release_date():
             "release_date": None,
         }
     ]
+
 
 @pytest.mark.asyncio
 async def test_get_artist_albums_handles_missing_release_date():

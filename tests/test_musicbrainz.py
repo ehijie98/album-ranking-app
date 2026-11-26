@@ -432,3 +432,32 @@ async def test_get_artist_albums_handles_empty_release_date():
             "release_date": None,
         }
     ]
+
+@pytest.mark.asyncio
+async def test_get_artist_albums_handles_missing_release_date():
+    def mock_handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            status_code=200,
+            json={
+                "release-group-count": 1,
+                "release-groups": [
+                    {
+                        "id": "album-1",
+                        "title": "Album One",
+                        "primary-type": "Album",
+                        "secondary-types": [],
+                    }
+                ],
+            },
+        )
+
+    async with make_client(mock_handler) as client:
+        result = await get_artist_albums("artist-1", client=client)
+
+    assert result == [
+        {
+            "id": "album-1",
+            "title": "Album One",
+            "release_date": None,
+        }
+    ]

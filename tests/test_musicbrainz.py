@@ -389,3 +389,13 @@ async def test_get_artist_albums_handles_missing_secondary_type_field():
             "release_date": "2022-02-02",
         },
     ]
+
+
+@pytest.mark.asyncio
+async def test_get_artist_albums_propagates_connection_timeout():
+    def mock_handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectTimeout("Connection timed out")
+    
+    async with make_client(mock_handler) as client:
+        with pytest.raises(httpx.ConnectTimeout):
+            await get_artist_albums("artist-1", client=client)

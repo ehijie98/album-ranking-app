@@ -257,3 +257,41 @@ async def test_get_artist_albums_handles_no_release_groups():
         result = await get_artist_albums("artist-with-no-release-groups", client=client)
 
     assert result == []
+
+
+@pytest.mark.asyncio
+async def test_get_artist_albums_only_retrieves_type_album():
+    requests_made = []
+
+    def mock_handler(request: httpx.Request) -> httpx.Response:
+        requests_made.append(request)
+        return httpx.Response(
+            status_code=200,
+            json={
+                "release-group-count": 2,
+                "release-groups": [
+                    {
+                        "id": "album-1",
+                        "title": "Album One",
+                        "first-release-date": "2021-01-01",
+                        "primary-type": "Album",
+                        "secondary-types": [],
+                    },
+                    {
+                        "id": "album-2",
+                        "title": "Album Two",
+                        "first-release-date": "2022-02-02",
+                        "primary-type": "Album",
+                        "secondary-types": [],
+                    },
+                ],
+            },
+        )
+
+    async with make_client(mock_handler) as client:
+        await get_artist_albums("artist-1", client=client)
+
+    assert len(requests_made) == 1
+
+    request = requests_made[0]
+    assert request.url.params["type"] == "album"

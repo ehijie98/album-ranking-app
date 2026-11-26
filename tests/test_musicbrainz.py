@@ -195,18 +195,20 @@ async def test_artist_mbid_retrieves_valid_release_groups():
         {"id": "album-2", "title": "Album Two", "release_date": "2022-02-02"},
     ]
 
+
 @pytest.mark.asyncio
 async def test_send_valid_get_artist_albums_request():
     def mock_handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "GET"
         assert request.url.host == "musicbrainz.org"
         assert request.url.path == "/ws/2/release-group"
-        assert request.url.params["artist"] == 'artist-1'
+        assert request.url.params["artist"] == "artist-1"
         assert request.url.params["fmt"] == "json"
         assert request.headers["User-Agent"].startswith("AlbumRankingApp/")
 
-        return httpx.Response(200, json={"release-groups": []})
+        return httpx.Response(
+            200, json={"release-group-count": 0, "release-groups": []}
+        )
 
     async with make_client(mock_handler) as client:
         await get_artist_albums("artist-1", client=client)
-

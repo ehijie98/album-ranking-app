@@ -1,7 +1,7 @@
 import httpx
 import pytest
 
-from musicbrainz import search_artists
+from musicbrainz import search_artists, get_artist_albums
 
 
 # make_client helper function to accept mock_handler and return async HTTP client weith mock transport
@@ -35,7 +35,9 @@ async def test_search_artists_returns_correct_artists():
         # client is injected into function
         result = await search_artists("Artist One", client=client)
 
-    assert result == [{"id": "artist-1", "name": "Artist One", "disambiguation": "Canadian rapper"}]
+    assert result == [
+        {"id": "artist-1", "name": "Artist One", "disambiguation": "Canadian rapper"}
+    ]
 
 
 @pytest.mark.asyncio
@@ -44,7 +46,7 @@ async def test_sends_valid_search_request():
     def mock_handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "GET"
         assert request.url.host == "musicbrainz.org"
-        assert request.url.path == "/ws/2/artist/"
+        assert request.url.path == "/ws/2/artist"
         assert request.url.params["query"] == 'artist:"Artist One"'
         assert request.url.params["fmt"] == "json"
         assert request.headers["User-Agent"].startswith("AlbumRankingApp/")
@@ -156,3 +158,39 @@ async def test_search_artists_handles_missing_disambiguation_field():
     async with make_client(mock_handler) as client:
         result = await search_artists("Artist One", client=client)
     assert result == [{"id": "artist-1", "name": "Artist One", "disambiguation": ""}]
+
+
+@pytest.mark.asyncio
+async def test_artist_mbid_retrieves_valid_release_groups():
+
+    def mock_handler(request: httpx.Request) -> httpx.Response:
+        return httpxResponse(
+            status_code=200,
+            json={
+                "release-group-count": 2,
+                "release-groups": [
+                    {
+                        "id": "album-1",
+                        "title": "Album One",
+                        "first-release-date": "2021-01-01",
+                        "primary-type": "Album",
+                        "secondary-types": [],
+                    },
+                    {
+                        "id": "album-2",
+                        "title": "Album Two",
+                        "first-release-date": "2022-02-02",
+                        "primary-type": "Album",
+                        "secondary-types": [],
+                    },
+                ],
+            },
+        )
+
+    async with make_client(mock_handler) as client:
+        result = await get_artist_albums("artist-1", client)
+
+    assert result == [
+        {"id": "album-1", "title": "Album One", "release_date": "2021-01-01"},
+        {"id": "album-2", "title": "Album Two", "release_date": "2022-02-02"},
+    ]

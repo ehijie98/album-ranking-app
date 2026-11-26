@@ -35,7 +35,9 @@ async def get_artist_albums(artist_id: str, client: httpx.AsyncClient) -> list[d
 
     return [
         {
-            "id": release_group["id"], "title": release_group["title"], "release_date": release_group["first-release-date"]
+            "id": release_group["id"],
+            "title": release_group["title"],
+            "release_date": release_group["first-release-date"],
         }
         for release_group in data["release-groups"]
     ]

@@ -1,7 +1,7 @@
 import httpx
 import pytest
 
-from musicbrainz import search_artists
+from musicbrainz import search_artists, get_artist_albums
 
 
 # make_client helper function to accept mock_handler and return async HTTP client weith mock transport
@@ -35,24 +35,33 @@ async def test_search_artists_returns_correct_artists():
         # client is injected into function
         result = await search_artists("Artist One", client=client)
 
-    assert result == [{"id": "artist-1", "name": "Artist One", "disambiguation": "Canadian rapper"}]
+    assert result == [
+        {"id": "artist-1", "name": "Artist One", "disambiguation": "Canadian rapper"}
+    ]
 
 
 @pytest.mark.asyncio
 async def test_sends_valid_search_request():
+    requests_made = []
 
     def mock_handler(request: httpx.Request) -> httpx.Response:
-        assert request.method == "GET"
-        assert request.url.host == "musicbrainz.org"
-        assert request.url.path == "/ws/2/artist/"
-        assert request.url.params["query"] == 'artist:"Artist One"'
-        assert request.url.params["fmt"] == "json"
-        assert request.headers["User-Agent"].startswith("AlbumRankingApp/")
-
+        requests_made.append(request)
         return httpx.Response(200, json={"artists": []})
 
     async with make_client(mock_handler) as client:
         await search_artists("Artist One", client=client)
+
+    assert len(requests_made) == 1
+
+    request = requests_made[0]
+
+    assert request.method == "GET"
+    assert request.url.host == "musicbrainz.org"
+    assert request.url.path == "/ws/2/artist"
+    assert request.url.params["query"] == 'artist:"Artist One"'
+    assert request.url.params["fmt"] == "json"
+    assert request.url.params["limit"] == "5"
+    assert request.headers["User-Agent"].startswith("AlbumRankingApp/")
 
 
 @pytest.mark.asyncio
@@ -87,14 +96,15 @@ async def test_search_artist_raises_on_http_errors(status_code):
     assert exc_info.value.response.status_code == status_code
 
 
+@pytest.mark.parametrize("timeout_type", [httpx.ConnectTimeout, httpx.ReadTimeout])
 @pytest.mark.asyncio
-async def test_search_artists_propagates_connection_timeout():
+async def test_search_artists_propagates_timeout(timeout_type):
 
     def mock_handler(request: httpx.Request) -> httpx.Response:
-        raise httpx.ConnectTimeout("Connection timed out")
+        raise timeout_type("Connection timed out")
 
     async with make_client(mock_handler) as client:
-        with pytest.raises(httpx.ConnectTimeout):
+        with pytest.raises(timeout_type):
             await search_artists("Artist One", client=client)
 
 
@@ -156,3 +166,342 @@ async def test_search_artists_handles_missing_disambiguation_field():
     async with make_client(mock_handler) as client:
         result = await search_artists("Artist One", client=client)
     assert result == [{"id": "artist-1", "name": "Artist One", "disambiguation": ""}]
+
+
+@pytest.mark.asyncio
+async def test_artist_mbid_retrieves_valid_release_groups():
+
+    def mock_handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            status_code=200,
+            json={
+                "release-group-count": 2,
+                "release-groups": [
+                    {
+                        "id": "album-1",
+                        "title": "Album One",
+                        "first-release-date": "2021-01-01",
+                        "primary-type": "Album",
+                        "secondary-types": [],
+                    },
+                    {
+                        "id": "album-2",
+                        "title": "Album Two",
+                        "first-release-date": "2022-02-02",
+                        "primary-type": "Album",
+                        "secondary-types": [],
+                    },
+                ],
+            },
+        )
+
+    async with make_client(mock_handler) as client:
+        result = await get_artist_albums("artist-1", client)
+
+    assert result == [
+        {"id": "album-1", "title": "Album One", "release_date": "2021-01-01"},
+        {"id": "album-2", "title": "Album Two", "release_date": "2022-02-02"},
+    ]
+
+
+@pytest.mark.asyncio
+async def test_send_valid_get_artist_albums_request():
+
+    requests_made = []
+
+    def mock_handler(request: httpx.Request) -> httpx.Response:
+        requests_made.append(request)
+
+        return httpx.Response(
+            200, json={"release-group-count": 0, "release-groups": []}
+        )
+
+    async with make_client(mock_handler) as client:
+        await get_artist_albums("artist-1", client=client)
+
+    assert len(requests_made) == 1
+
+    request = requests_made[0]
+
+    assert request.method == "GET"
+    assert request.url.host == "musicbrainz.org"
+    assert request.url.path == "/ws/2/release-group"
+    assert request.url.params["artist"] == "artist-1"
+    assert request.url.params["fmt"] == "json"
+    assert request.url.params["limit"] == "100"
+    assert request.url.params["offset"] == "0"
+    assert request.headers["User-Agent"].startswith("AlbumRankingApp/")
+    
+
+
+@pytest.mark.parametrize("status_code", [400, 401, 403, 404, 429, 500, 502, 503, 504])
+@pytest.mark.asyncio
+async def test_get_artist_albums_raises_on_http_error(status_code):
+    def mock_handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            status_code=status_code,
+            json={"error": "Service Unavailable. Please try again later"},
+        )
+
+    async with make_client(mock_handler) as client:
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            await get_artist_albums("artist-1", client=client)
+
+    assert exc_info.value.response.status_code == status_code
+
+
+@pytest.mark.asyncio
+async def test_get_artist_albums_handles_no_release_groups():
+    def mock_handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            status_code=200,
+            json={"release-group-count": 0, "release-groups": []},
+        )
+
+    async with make_client(mock_handler) as client:
+        result = await get_artist_albums("artist-with-no-release-groups", client=client)
+
+    assert result == []
+
+
+@pytest.mark.asyncio
+async def test_get_artist_albums_only_retrieves_type_album():
+    requests_made = []
+
+    def mock_handler(request: httpx.Request) -> httpx.Response:
+        requests_made.append(request)
+        return httpx.Response(
+            status_code=200,
+            json={
+                "release-group-count": 0,
+                "release-groups": [],
+            },
+        )
+
+    async with make_client(mock_handler) as client:
+        await get_artist_albums("artist-1", client=client)
+
+    assert len(requests_made) == 1
+
+    request = requests_made[0]
+    assert request.url.params["type"] == "album"
+
+
+@pytest.mark.asyncio
+async def test_get_artist_albums_retrieves_empty_secondary_type():
+    def mock_handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            status_code=200,
+            json={
+                "release-group-count": 4,
+                "release-groups": [
+                    {
+                        "id": "album-1",
+                        "title": "Album One",
+                        "first-release-date": "2021-01-01",
+                        "primary-type": "Album",
+                        "secondary-types": ["Live"],
+                    },
+                    {
+                        "id": "album-2",
+                        "title": "Album Two",
+                        "first-release-date": "2022-02-02",
+                        "primary-type": "Album",
+                        "secondary-types": ["Compilation"],
+                    },
+                    {
+                        "id": "album-3",
+                        "title": "Album Three",
+                        "first-release-date": "2023-03-03",
+                        "primary-type": "Album",
+                        "secondary-types": ["Remix"],
+                    },
+                    {
+                        "id": "album-4",
+                        "title": "Album Four",
+                        "first-release-date": "2024-04-04",
+                        "primary-type": "Album",
+                        "secondary-types": [],
+                    },
+                ],
+            },
+        )
+
+    async with make_client(mock_handler) as client:
+        result = await get_artist_albums("artist-1", client=client)
+
+    assert result == [
+        {
+            "id": "album-4",
+            "title": "Album Four",
+            "release_date": "2024-04-04",
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_get_artist_albums_handles_missing_secondary_type_field():
+    def mock_handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            status_code=200,
+            json={
+                "release-group-count": 2,
+                "release-groups": [
+                    {
+                        "id": "album-1",
+                        "title": "Album One",
+                        "first-release-date": "2021-01-01",
+                        "primary-type": "Album",
+                        "secondary-types": [],
+                    },
+                    {
+                        "id": "album-2",
+                        "title": "Album Two",
+                        "first-release-date": "2022-02-02",
+                        "primary-type": "Album",
+                    },
+                ],
+            },
+        )
+
+    async with make_client(mock_handler) as client:
+        result = await get_artist_albums("artist-1", client=client)
+
+    assert result == [
+        {
+            "id": "album-1",
+            "title": "Album One",
+            "release_date": "2021-01-01",
+        },
+        {
+            "id": "album-2",
+            "title": "Album Two",
+            "release_date": "2022-02-02",
+        },
+    ]
+
+
+@pytest.mark.parametrize("timeout_type", [httpx.ConnectTimeout, httpx.ReadTimeout])
+@pytest.mark.asyncio
+async def test_get_artist_albums_propagates_timeout(timeout_type):
+    def mock_handler(request: httpx.Request) -> httpx.Response:
+        raise timeout_type("Request timed out")
+
+    async with make_client(mock_handler) as client:
+        with pytest.raises(timeout_type):
+            await get_artist_albums("artist-1", client=client)
+
+
+@pytest.mark.asyncio
+async def test_get_artist_albums_handles_empty_release_date():
+    def mock_handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            status_code=200,
+            json={
+                "release-group-count": 1,
+                "release-groups": [
+                    {
+                        "id": "album-1",
+                        "title": "Album One",
+                        "first-release-date": "",
+                        "primary-type": "Album",
+                        "secondary-types": [],
+                    }
+                ],
+            },
+        )
+
+    async with make_client(mock_handler) as client:
+        result = await get_artist_albums("artist-1", client=client)
+
+    assert result == [
+        {
+            "id": "album-1",
+            "title": "Album One",
+            "release_date": None,
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_get_artist_albums_handles_missing_release_date():
+    def mock_handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            status_code=200,
+            json={
+                "release-group-count": 1,
+                "release-groups": [
+                    {
+                        "id": "album-1",
+                        "title": "Album One",
+                        "primary-type": "Album",
+                        "secondary-types": [],
+                    }
+                ],
+            },
+        )
+
+    async with make_client(mock_handler) as client:
+        result = await get_artist_albums("artist-1", client=client)
+
+    assert result == [
+        {
+            "id": "album-1",
+            "title": "Album One",
+            "release_date": None,
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_get_artist_albums_retrieves_multiple_pages():
+    requests_made = []
+
+    def album(number):
+        return {
+            "id": f"album-{number}",
+            "title": f"Album {number}",
+            "first-release-date": f"202{number}-0{number}-0{number}",
+            "primary-type": "Album",
+            "secondary-types": [],
+        }
+
+    first_page = {
+        "release-group-count": 5,
+        "release-groups": [album(1), album(2), album(3)],
+    }
+
+    second_page = {
+        "release-group-count": 5,
+        "release-groups": [album(4), album(5)],
+    }
+
+    def mock_handler(request: httpx.Request) -> httpx.Response:
+        requests_made.append(request)
+
+        offset = int(request.url.params.get("offset", "0"))
+
+        if offset == 0:
+            return httpx.Response(200, json=first_page)
+
+        if offset == 3:
+            return httpx.Response(200, json=second_page)
+
+        raise AssertionError(f"Unexpected offset: {offset}")
+
+    async with make_client(mock_handler) as client:
+        result = await get_artist_albums("artist-1", client=client)
+
+    assert len(requests_made) == 2
+
+    assert int(requests_made[0].url.params.get("offset", "0")) == 0
+    assert int(requests_made[1].url.params["offset"]) == 3
+
+    assert result == [
+        {
+            "id": f"album-{number}",
+            "title": f"Album {number}",
+            "release_date": f"202{number}-0{number}-0{number}",
+        }
+        for number in range(1, 6)
+    ]
